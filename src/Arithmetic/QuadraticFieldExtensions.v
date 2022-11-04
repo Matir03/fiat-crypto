@@ -1,5 +1,6 @@
 Require Import Crypto.Algebra.Field.
 Require Import Crypto.Util.Tactics.SetoidSubst.
+Require Import Crypto.Arithmetic.ModularArithmeticTheorems.
 Require Import Crypto.Arithmetic.PrimeFieldTheorems.
 Require Import Coq.ZArith.BinInt Coq.NArith.BinNat Coq.ZArith.ZArith Coq.ZArith.Znumtheory Coq.NArith.NArith. (* import Zdiv before Znumtheory *)
 
@@ -110,9 +111,58 @@ Module F2.
     Qed.
   End Field.
   
+  Local Open Scope F_scope.
+
   Section SquareRoots.
     Context {p : positive} {prime_p : prime p} {p_odd : 2 < p}
-      {r : F p} {r_nqr : forall x : F p, (x * x <> r)%F}.
+      {r : F p} {r_nqr : forall x : F p, x * x <> r}.
+    
+    Definition legendre (a : F p) := a ^ (Z.to_N (p / 2)).
+
+    Lemma euler_criterion (a : F p) (a_nonzero : a <> 0) :
+      (legendre a = 1) <-> (exists b, b*b = a).
+    Admitted.
+
+    Lemma legendre_multiplicative (a b : F p) :
+      legendre (a * b) = legendre a * legendre b. 
+    Admitted.
+
+    Lemma legendre_square_one (a : F p) {a_nonzero : a <> 0} :
+      legendre (a * a) = 1.
+    Admitted.
+
+    Lemma legendre_zero_zero :
+      legendre 0 = 0.
+    Admitted.
+
+    Lemma legendre_pm_one {a : F p} (a_nonzero : a <> 0) :
+      legendre a = 1 \/ legendre a = F.opp 1.
+    Admitted.
+
+    Lemma euler_criterion' (a : F p) (a_nonzero : a <> 0) :
+      (legendre a = F.opp 1) <-> (~exists b, b*b = a).
+    Admitted.
+
+    Lemma r_nonzero :
+      r <> 0.
+    Proof.
+      intro.
+      apply (r_nqr 0).
+      fsatz.
+    Admitted.
+
+    Lemma legendre_r_minus_one :
+      legendre r = F.opp 1.
+    Proof.
+      pose proof r_nonzero.
+      pose proof @legendre_pm_one r H as pm_one.
+      destruct pm_one.
+      rewrite euler_criterion in H0.
+      destruct H0.
+      exfalso.
+      eapply r_nqr.
+      all: eassumption.
+    Admitted.
     
     Lemma sqrt_exists (x : F p) : exists y : F2 p, @F2.mul p r y y = (x, 0%F).
     Proof.
@@ -125,7 +175,32 @@ Module F2.
         unfold QF.mul.
         f_equal; fsatz.
       }
-      rewrite F.euler_criterion' in n.
+      rewrite <- euler_criterion' in n.
+      pose proof r_nonzero.
+      pose proof legendre_r_minus_one.
+      pose proof legendre_multiplicative r (x/r).
+      assert (r * (x/r) = x) by fsatz.
+      rewrite H2 in H1.
+      rewrite n in H1.
+      rewrite H0 in H1.
+      assert (legendre (x/r) = 1) by fsatz.
+      rewrite euler_criterion in H3.
+      destruct H3.
+      exists (0, x0).
+      unfold mul.
+      unfold QF.mul.
+      f_equal.
+      fsatz.
+      fsatz.
+      intro.
+      rewrite H4 in H3.
+      rewrite legendre_zero_zero in H3.
+      fsatz.
+      intro.
+      destruct n.
+      exists 0.
+      fsatz.
+    Admitted.
       
   End SquareRoots.
 End F2.
