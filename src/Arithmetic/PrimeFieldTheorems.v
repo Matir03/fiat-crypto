@@ -9,6 +9,7 @@ Require Import Crypto.Util.NumTheoryUtil.
 Require Import Coq.Classes.Morphisms Coq.Setoids.Setoid.
 Require Import Coq.ZArith.BinInt Coq.NArith.BinNat Coq.ZArith.ZArith Coq.ZArith.Znumtheory Coq.NArith.NArith. (* import Zdiv before Znumtheory *)
 Require Import Coq.Logic.Eqdep_dec.
+Require Import Crypto.Algebra.Field.
 Require Import Crypto.Util.NumTheoryUtil.
 Require Import Crypto.Util.ZUtil.Odd.
 Require Import Crypto.Util.ZUtil.Modulo.
@@ -62,14 +63,59 @@ Module F.
       apply (fermat_inv q _ (F.to_Z x)); rewrite F.mod_to_Z; eapply F.to_Z_nonzero; trivial.
     Qed.
 
+    Definition legendre (a : F q) := a ^ (Z.to_N (q / 2)).
+
+    Lemma legendre_multiplicative (a b : F q) :
+      legendre (a * b) = legendre a * legendre b. 
+    Proof. apply F.pow_mul_l. Qed.
+    
     Lemma euler_criterion (a : F q) (a_nonzero : a <> 0) :
-      (a ^ (Z.to_N (q / 2)) = 1) <-> (exists b, b*b = a).
+      (legendre a = 1) <-> (exists b, b*b = a).
     Proof using Type*.
+      unfold legendre.
       pose proof F.to_Z_nonzero_range a; pose proof (odd_as_div q).
       specialize_by (destruct (Z.prime_odd_or_2 _ prime_q); try lia; trivial).
       rewrite F.eq_to_Z_iff, !F.to_Z_pow, !to_Z_1, !Z2N.id by lia.
       rewrite F.square_iff, <-(euler_criterion (q/2)) by (trivial || lia); reflexivity.
     Qed.
+
+    Lemma legendre_square_one (a : F q) {a_nonzero : a <> 0} :
+      legendre (a * a) = 1.
+    Proof.
+      rewrite euler_criterion.
+      - exists a. fsatz.
+      - fsatz.
+    Admitted.
+
+    Lemma legendre_pm_one {a : F q} (a_nonzero : a <> 0) :
+      legendre a = 1 \/ legendre a = F.opp 1.
+    Proof.
+      eapply only_two_square_roots_choice.
+      {
+        erewrite <- legendre_multiplicative.
+        eapply legendre_square_one.
+        assumption.
+      }
+      fsatz.
+    Admitted.
+
+    Lemma euler_criterion' (a : F q) (a_nonzero : a <> 0) :
+      (legendre a = F.opp 1) <-> (~exists b, b*b = a).
+    Proof.
+      split.
+      {
+        intros.
+        intro hb.
+        destruct hb.
+        rewrite <- H0 in H.
+        rewrite legendre_square_one in H; fsatz.
+      }
+      intro.
+      pose proof (legendre_pm_one a_nonzero).
+      destruct H0.
+      - exfalso. apply H. rewrite <- euler_criterion; assumption.
+      - assumption.
+    Admitted.
 
     Global Instance Decidable_square : forall (x:F q), Decidable (exists y, y*y = x).
     Proof.
@@ -107,6 +153,7 @@ Module F.
       cbv [sqrt_3mod4]; intros.
       destruct (F.eq_dec x 0);
       repeat match goal with
+             | |- _ => progress unfold legendre
              | |- _ => progress subst
              | |- _ => progress rewrite ?F.pow_0_l, <-?F.pow_add_r
              | |- _ => progress rewrite <-?Z2N.inj_0, <-?Z2N.inj_add by Z.zero_bounds
