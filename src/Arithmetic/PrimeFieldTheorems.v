@@ -47,7 +47,9 @@ Module F.
   End Field.
 
   Section NumberThoery.
-    Context {q:positive} {prime_q:prime q} {two_lt_q: 2 < q}.
+    Context {q:positive} {prime_q:prime q} {two_lt_q: 2 < q}
+    {char_ge_3:@Ring.char_ge (F q) Logic.eq F.zero F.one F.opp F.add F.sub F.mul (BinNat.N.succ_pos (BinNat.N.two))}.
+
 
     (* TODO: move to PrimeFieldTheorems *)
     Lemma to_Z_1 : @F.to_Z q 1 = 1%Z.
@@ -85,7 +87,7 @@ Module F.
       rewrite euler_criterion.
       - exists a. fsatz.
       - fsatz.
-    Admitted.
+    Qed.
 
     Lemma legendre_pm_one {a : F q} (a_nonzero : a <> 0) :
       legendre a = 1 \/ legendre a = F.opp 1.
@@ -97,7 +99,7 @@ Module F.
         assumption.
       }
       fsatz.
-    Admitted.
+    Qed.
 
     Lemma euler_criterion' (a : F q) (a_nonzero : a <> 0) :
       (legendre a = F.opp 1) <-> (~exists b, b*b = a).
@@ -115,8 +117,8 @@ Module F.
       destruct H0.
       - exfalso. apply H. rewrite <- euler_criterion; assumption.
       - assumption.
-    Admitted.
-
+    Qed.
+    
     Global Instance Decidable_square : forall (x:F q), Decidable (exists y, y*y = x).
     Proof.
       intro x; destruct (dec (x = 0)).

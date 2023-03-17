@@ -1,8 +1,10 @@
 Require Import Crypto.Algebra.Field.
 Require Import Crypto.Util.Tactics.SetoidSubst.
+Require Import Crypto.Spec.ModularArithmetic.
 Require Import Crypto.Arithmetic.ModularArithmeticTheorems.
 Require Import Crypto.Arithmetic.PrimeFieldTheorems.
 Require Import Coq.ZArith.BinInt Coq.NArith.BinNat Coq.ZArith.ZArith Coq.ZArith.Znumtheory Coq.NArith.NArith. (* import Zdiv before Znumtheory *)
+Require Import MxDH.
 
 Module QF.
   Section QF.
@@ -115,7 +117,8 @@ Module F2.
 
   Section SquareRoots.
     Context {p : positive} {prime_p : prime p} {p_odd : 2 < p}
-      {r : F p} {r_nqr : forall x : F p, x * x <> r}.
+      {r : F p} {r_nqr : forall x : F p, x * x <> r}
+      {char_ge_3:@Ring.char_ge (F p) Logic.eq F.zero F.one F.opp F.add F.sub F.mul (BinNat.N.succ_pos (BinNat.N.two))}.
     
     Definition legendre (a : F p) := a ^ (Z.to_N (p / 2)).
 
@@ -149,7 +152,7 @@ Module F2.
       intro.
       apply (r_nqr 0).
       fsatz.
-    Admitted.
+    Qed.
 
     Lemma legendre_r_minus_one :
       legendre r = F.opp 1.
@@ -162,7 +165,7 @@ Module F2.
       exfalso.
       eapply r_nqr.
       all: eassumption.
-    Admitted.
+    Qed.
     
     Lemma sqrt_exists (x : F p) : exists y : F2 p, @F2.mul p r y y = (x, 0%F).
     Proof.
@@ -200,7 +203,38 @@ Module F2.
       destruct n.
       exists 0.
       fsatz.
-    Admitted.
+    Qed.
       
   End SquareRoots.
 End F2.
+
+Notation F2 := F2.F2.
+Declare Scope F2_scope.
+Delimit Scope F2_scope with F2.
+Bind Scope F2_scope with F2.F2.
+Infix "+" := F2.add : F2_scope.
+Infix "*" := F2.mul : F2_scope.
+Infix "-" := F2.sub : F2_scope.
+Infix "/" := F2.div : F2_scope.
+Notation "0" := F2.zero : F2_scope.
+Notation "1" := F2.one : F2_scope.
+
+Section MontUnique.
+    Context {p : positive} {prime_p : prime p} {p_ge_5 : 4 < p}.
+    
+    Definition Fp := F p.
+
+    Context {r : F p}.
+    Definition Fp2 := F2 p.
+
+    Local Notation "2" := (1+1)%F.
+    Local Notation "4" := (2+2)%F.
+
+    Context {a : F p} {nonsquare_aa_m4:~exists x : F p, (x*x = a*a-4)%F}.
+
+    Definition a24 := F2.F2_of_F ((a-2)/4)%F.
+    Definition cswap {T} (swap:bool) (a b:T) := if swap then (b, a) else (a, b).
+    Definition monty s : Fp2 -> Fp2 := @MxDH.montladder Fp2 F2.zero F2.one F2.add F2.sub (F2.mul (r:=r)) (F2.inv (r:=r)) a24 cswap 255 (BinNat.N.testbit_nat s).
+    Check monty.
+    
+End MontUnique.
